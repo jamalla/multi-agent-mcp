@@ -59,9 +59,19 @@ async def build_supervisor():
     agent1, agent2, agent3, _, _, _ = await build_agents()
     router_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0).with_structured_output(Route)
 
-    async def route_and_run(user_query: str) -> dict:
+    # One running conversation per session, kept above the agents so context
+    # survives when the user switches between them. In-memory: fine for a demo.
+    sessions: dict[str, list[tuple[str, str]]] = {}
+
+    async def route_and_run(user_query: str, session_id: str = "default") -> dict:
+        history = sessions.setdefault(session_id, [])
+
+        # Let the router see recent turns so follow-ups ("what about there?")
+        # route to the right agent.
+        recent = "\n".join(f"{role}: {content}" for role, content in history[-6:])
         decision = await router_llm.ainvoke(
-            f"Route this user query to the correct specialist:\n\n{user_query}"
+            (f"Conversation so far:\n{recent}\n\n" if recent else "")
+            + f"Route this new user message to the correct specialist:\n{user_query}"
         )
         if decision.destination == "weather":
             agent, label = agent1, "Agent 1 (weather)"
@@ -70,14 +80,20 @@ async def build_supervisor():
         else:
             agent, label = agent2, "Agent 2 (country)"
 
-        result = await agent.ainvoke({"messages": [("user", user_query)]})
-        messages = result["messages"]
-        answer = messages[-1].content
+        # Give the chosen agent the whole conversation plus the new question.
+        result = await agent.ainvoke({"messages": history + [("user", user_query)]})
+        answer = result["messages"][-1].content
+
+        # Remember this turn (cap length so it does not grow forever).
+        history.append(("user", user_query))
+        history.append(("assistant", answer))
+        del history[:-20]
 
         return {
             "answer": answer,
             "route": {"destination": decision.destination, "agent": label},
-            "steps": _extract_steps(messages),
+            "steps": _extract_steps(result["messages"]),
+            "session_id": session_id,
         }
 
     return route_and_run
@@ -85,20 +101,17 @@ async def build_supervisor():
 
 async def main():
     supervisor = await build_supervisor()
+    # A single session with follow-ups that only work if context is kept:
+    # "there" and "they" refer back to earlier turns, across different agents.
+    sid = "demo"
     for q in [
-        "What's the weather in Tokyo?",
-        "What currency does Brazil use?",
-        "What are the upcoming World Cup matches?",
-        "Who will win the next World Cup match, and why?",
+        "What's the weather in Tokyo?",         # weather agent
+        "What currency do they use there?",      # country agent, "there" = Japan
+        "Are they in the World Cup this year?",   # world cup agent, "they" = Japan
     ]:
         print("\nUSER:", q)
-        r = await supervisor(q)
+        r = await supervisor(q, sid)
         print(f"[routed to {r['route']['agent']}]")
-        for s in r["steps"]:
-            if s["kind"] == "tool_call":
-                print(f"  → call {s['tool']}({s['args']})")
-            else:
-                print(f"  ← {s['tool']} returned: {s['output']}")
         print(r["answer"])
 
 

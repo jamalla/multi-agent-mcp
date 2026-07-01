@@ -1,3 +1,4 @@
+import uuid
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -17,6 +18,7 @@ supervisor = None
 
 class Query(BaseModel):
     question: str
+    session_id: str | None = None
 
 @app.on_event("startup")
 async def startup():
@@ -25,8 +27,9 @@ async def startup():
 
 @app.post("/ask")
 async def ask(q: Query):
-    # returns {"answer": ..., "route": {...}, "steps": [...]}
-    return await supervisor(q.question)
+    # session_id groups a conversation so context is kept across follow-ups.
+    session_id = q.session_id or str(uuid.uuid4())
+    return await supervisor(q.question, session_id)
 
 @app.get("/", response_class=HTMLResponse)
 async def home():
@@ -60,6 +63,10 @@ CHAT_HTML = """
            height: 100vh; padding: 0 16px; }
     header { padding: 20px 4px 12px; }
     header h1 { font-size: 20px; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+    #newchat { margin-left: auto; font-size: 12px; font-weight: 600; padding: 5px 12px;
+               border: 1px solid var(--border); background: #fff; border-radius: 999px;
+               color: #374151; cursor: pointer; }
+    #newchat:hover { border-color: var(--indigo); color: var(--indigo); }
     header p { margin: 0; color: var(--muted); font-size: 14px; }
     .badge-live { font-size: 11px; font-weight: 600; color: #059669; background: #d1fae5;
                   padding: 2px 8px; border-radius: 999px; }
@@ -112,8 +119,9 @@ CHAT_HTML = """
 <body>
   <div class="app">
     <header>
-      <h1>🧭 Multi-Agent MCP Demo <span class="badge-live">live</span></h1>
-      <p>Ask about weather, countries, or the FIFA World Cup 2026. A supervisor routes each question to the right specialist agent, and you can expand each answer to see the tools it called.</p>
+      <h1>🧭 Multi-Agent MCP Demo <span class="badge-live">live</span>
+          <button id="newchat" onclick="newChat()">New chat</button></h1>
+      <p>Ask about weather, countries, or the FIFA World Cup 2026. A supervisor routes each question to the right specialist agent, and you can expand each answer to see the tools it called. Ask follow-ups like "what currency do they use there?" and it keeps the context.</p>
     </header>
 
     <div id="log"></div>
@@ -141,6 +149,14 @@ CHAT_HTML = """
     const input = document.getElementById('q');
     const btn = document.getElementById('send');
     const chips = document.getElementById('chips');
+
+    // One conversation id per browser session; the server keeps context under it.
+    let sessionId = crypto.randomUUID();
+    function newChat() {
+      sessionId = crypto.randomUUID();
+      log.innerHTML = '';
+      input.focus();
+    }
 
     function esc(s) {
       return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -201,7 +217,7 @@ CHAT_HTML = """
         const r = await fetch('/ask', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question })
+          body: JSON.stringify({ question, session_id: sessionId })
         });
         const data = await r.json();
         loading.innerHTML =
