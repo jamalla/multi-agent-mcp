@@ -8,7 +8,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],       # demo only — lock this down in production
+    allow_origins=["*"],       # demo only: lock this down in production
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -112,7 +112,7 @@ CHAT_HTML = """
   <div class="app">
     <header>
       <h1>🧭 Multi-Agent MCP Demo <span class="badge-live">live</span></h1>
-      <p>Ask about weather or countries — a supervisor routes each question to the right specialist agent, and you can expand each answer to see the tools it called.</p>
+      <p>Ask about weather or countries. A supervisor routes each question to the right specialist agent, and you can expand each answer to see the tools it called.</p>
     </header>
 
     <div id="log"></div>

@@ -11,7 +11,7 @@ def filter_tools(all_tools, prefix):
 
 async def build_agents():
     client = get_mcp_client()
-    all_tools = await client.get_tools()          # full catalog — all 7
+    all_tools = await client.get_tools()          # full catalog, all 7
 
     agent1_tools = filter_tools(all_tools, AGENT_PREFIXES["agent1"])   # weather
     agent2_tools = filter_tools(all_tools, AGENT_PREFIXES["agent2"])   # country

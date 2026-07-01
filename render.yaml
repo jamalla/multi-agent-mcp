@@ -1,4 +1,4 @@
-# Render Blueprint — deploys the MCP server as a free Docker web service.
+# Render Blueprint: deploys the MCP server as a free Docker web service.
 # In the Render dashboard: New → Blueprint → connect this repo, and Render
 # reads this file. (Or create the Web Service manually with the same settings.)
 services:

@@ -1,8 +1,8 @@
 # Multi-Agent MCP Demo
 
-A working demonstration of **one MCP server exposing many tools**, with **multiple LangGraph agents each bound to a filtered subset** of those tools, and a **supervisor** that routes each user question to the right agent — all deployed to the cloud with a browser chat UI.
+A working demonstration of **one MCP server exposing many tools**, with **multiple LangGraph agents each bound to a filtered subset** of those tools, and a **supervisor** that routes each user question to the right agent, all deployed to the cloud with a browser chat UI.
 
-> **The core idea:** a single MCP server hands over its *entire* tool catalog to any client. Filtering — deciding *which* agent sees *which* tools — happens on the client side, in one line:
+> **The core idea:** a single MCP server hands over its *entire* tool catalog to any client. Filtering, deciding *which* agent sees *which* tools, happens on the client side, in one line:
 > ```python
 > agent_tools = [t for t in all_tools if t.name.startswith(prefix)]
 > ```
@@ -16,7 +16,7 @@ A working demonstration of **one MCP server exposing many tools**, with **multip
 | ❤️ MCP health check | https://multi-agent-mcp.onrender.com/health |
 | 📦 Source | https://github.com/jamalla/multi-agent-mcp |
 
-> ⏳ **Cold start:** both services run on Render's free tier and sleep after ~15 min idle. The first request after a nap can take 30–50s to wake the container — the second is fast. The chat UI shows a "may take ~40s" hint while waiting.
+> ⏳ **Cold start:** both services run on Render's free tier and sleep after ~15 min idle. The first request after a nap can take 30 to 50s to wake the container, then the second is fast. The chat UI shows a "may take ~40s" hint while waiting.
 
 ## Architecture
 
@@ -70,7 +70,7 @@ The naming convention (`weather_` / `country_` prefixes) is what makes per-agent
 
 Both upstream APIs are free and require **no API key**.
 
-## Observability — see the route & tool steps
+## Observability: see the route & tool steps
 
 Every answer returns a structured trace, rendered under each message in the UI (expandable):
 
@@ -92,7 +92,7 @@ The `/ask` endpoint returns:
 }
 ```
 
-For deeper tracing (timings, tokens, nested spans), set `LANGCHAIN_TRACING_V2=true` and `LANGCHAIN_API_KEY` to enable **LangSmith** — no code changes required.
+For deeper tracing (timings, tokens, nested spans), set `LANGCHAIN_TRACING_V2=true` and `LANGCHAIN_API_KEY` to enable **LangSmith**, no code changes required.
 
 ## Tech stack
 
@@ -151,12 +151,12 @@ uvicorn agents.api:app --port 8080
 
 Two Docker web services from this repo.
 
-**Service 1 — MCP server**
+**Service 1: MCP server**
 - Dockerfile: `Dockerfile.server`
 - Health check path: `/health`
 - Env vars: none (the server needs no secrets)
 
-**Service 2 — Agent API + UI**
+**Service 2: Agent API + UI**
 - Dockerfile: `Dockerfile.agents`
 - Env vars:
   - `OPENAI_API_KEY` = your OpenAI key
@@ -166,4 +166,4 @@ Both read `$PORT` (injected by Render) and bind `0.0.0.0`, so no port config is 
 
 ## Author
 
-**Jamalla Zawia** — jamala.zawia@gmail.com
+**Jamalla Zawia** - jamala.zawia@gmail.com
