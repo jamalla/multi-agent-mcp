@@ -101,6 +101,11 @@ CHAT_HTML = """
             color: #fff; font-weight: 600; cursor: pointer; }
     #send:hover { background: var(--indigo-dark); }
     #send:disabled { opacity: .5; cursor: default; }
+    footer.by { padding: 4px 4px 18px; color: var(--muted); font-size: 13px;
+                border-top: 1px solid var(--border); margin-top: 2px; }
+    footer.by strong { color: #374151; }
+    footer.by a { color: var(--indigo); text-decoration: none; }
+    footer.by a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -123,6 +128,11 @@ CHAT_HTML = """
       <input id="q" placeholder="Ask about weather or a country…" autofocus>
       <button id="send" onclick="ask()">Send</button>
     </div>
+
+    <footer class="by">
+      Built by <strong>Jamalla Zawia</strong> ·
+      <a href="mailto:jamala.zawia@gmail.com">jamala.zawia@gmail.com</a>
+    </footer>
   </div>
 
   <script>
