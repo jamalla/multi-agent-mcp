@@ -29,34 +29,34 @@ A working demonstration of **one MCP server exposing many tools**, with **multip
         │   ┌─────────────────────────────────────────┐  │
         │   │           LangGraph Supervisor          │  │
         │   │  (LLM router → picks the right agent)    │  │
-        │   └───────────────┬───────────────┬─────────┘  │
-        │            ┌───────▼──────┐ ┌──────▼───────┐    │
-        │            │   Agent 1     │ │   Agent 2     │   │
-        │            │  weather_*    │ │  country_*    │   │
-        │            │  (2 tools)    │ │  (5 tools)    │   │
-        │            └───────┬──────┘ └──────┬───────┘    │
-        └────────────────────┼───────────────┼───────────┘
-                             └───────┬────────┘
-                       filtered subsets of one catalog
-                                     │  (streamable-HTTP / MCP)
-                        ┌────────────▼────────────┐
-                        │      MCP Server         │  (Render service #1)
-                        │   7 tools, unfiltered   │
-                        └───────┬────────┬────────┘
-                                │        │
-                     ┌──────────▼─┐ ┌────▼──────────────┐
-                     │ Open-Meteo │ │  CountriesNow      │
-                     │ (weather)  │ │  (country data)    │
-                     └────────────┘ └────────────────────┘
+        │   └──────────┬──────────┬──────────┬────────┘  │
+        │       ┌──────▼─────┐ ┌──▼───────┐ ┌▼─────────┐ │
+        │       │  Agent 1    │ │ Agent 2   │ │ Agent 3  │ │
+        │       │ weather_*   │ │ country_* │ │worldcup_*│ │
+        │       │ (2 tools)   │ │ (5 tools) │ │(5 tools) │ │
+        │       └──────┬─────┘ └──┬───────┘ └┬─────────┘ │
+        └──────────────┼──────────┼──────────┼───────────┘
+                       └──────────┼──────────┘
+                     filtered subsets of one catalog
+                                  │  (streamable-HTTP / MCP)
+                     ┌────────────▼────────────┐
+                     │      MCP Server         │  (Render service #1)
+                     │   12 tools, unfiltered  │
+                     └────┬──────────┬─────────┬┘
+                          │          │         │
+                 ┌────────▼─┐ ┌──────▼────┐ ┌──▼──────────────┐
+                 │Open-Meteo│ │CountriesNow│ │football-data.org│
+                 │(weather) │ │ (country)  │ │  (World Cup)    │
+                 └──────────┘ └────────────┘ └─────────────────┘
 ```
 
 **Two clean separations:**
 - The **supervisor** decides *who* handles a query (routing).
 - The **prefix filter** decides *what* each agent can do (tool scoping).
 
-## The tools (7 total)
+## The tools (12 total)
 
-The naming convention (`weather_` / `country_` prefixes) is what makes per-agent filtering a one-liner.
+The naming convention (`weather_` / `country_` / `worldcup_` prefixes) is what makes per-agent filtering a one-liner.
 
 | Prefix | Tool | Source API |
 |---|---|---|
@@ -67,8 +67,13 @@ The naming convention (`weather_` / `country_` prefixes) is what makes per-agent
 | `country_` | `country_population` | CountriesNow |
 | `country_` | `country_dial_code` | CountriesNow |
 | `country_` | `country_flag` | CountriesNow |
+| `worldcup_` | `worldcup_matches_upcoming` | football-data.org |
+| `worldcup_` | `worldcup_match_results` | football-data.org |
+| `worldcup_` | `worldcup_group_standings` | football-data.org |
+| `worldcup_` | `worldcup_teams` | football-data.org |
+| `worldcup_` | `worldcup_team_form` | football-data.org |
 
-Both upstream APIs are free and require **no API key**.
+Open-Meteo and CountriesNow are free and need **no key**. football-data.org needs a free API key (`FOOTBALL_API_KEY`). "Predictions" are the World Cup agent reasoning over standings and recent form it fetches with these tools, not a separate prediction API.
 
 ## Observability: see the route & tool steps
 
@@ -154,7 +159,8 @@ Two Docker web services from this repo.
 **Service 1: MCP server**
 - Dockerfile: `Dockerfile.server`
 - Health check path: `/health`
-- Env vars: none (the server needs no secrets)
+- Env vars:
+  - `FOOTBALL_API_KEY` = your football-data.org key (needed by the World Cup tools)
 
 **Service 2: Agent API + UI**
 - Dockerfile: `Dockerfile.agents`

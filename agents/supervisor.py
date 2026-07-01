@@ -7,9 +7,11 @@ from agents.graph import build_agents
 
 class Route(BaseModel):
     """Which specialist agent should handle the user's query."""
-    destination: Literal["weather", "country"] = Field(
+    destination: Literal["weather", "country", "worldcup"] = Field(
         description="'weather' for weather/forecast/temperature questions; "
-                    "'country' for questions about countries, capitals, population, currency, languages."
+                    "'country' for questions about countries, capitals, population, currency, languages; "
+                    "'worldcup' for FIFA World Cup 2026 matches, fixtures, results, group standings, "
+                    "team form, and match predictions."
     )
 
 
@@ -54,7 +56,7 @@ def _extract_steps(messages) -> list[dict]:
 
 
 async def build_supervisor():
-    agent1, agent2, _, _ = await build_agents()
+    agent1, agent2, agent3, _, _, _ = await build_agents()
     router_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0).with_structured_output(Route)
 
     async def route_and_run(user_query: str) -> dict:
@@ -63,6 +65,8 @@ async def build_supervisor():
         )
         if decision.destination == "weather":
             agent, label = agent1, "Agent 1 (weather)"
+        elif decision.destination == "worldcup":
+            agent, label = agent3, "Agent 3 (world cup)"
         else:
             agent, label = agent2, "Agent 2 (country)"
 
@@ -84,8 +88,8 @@ async def main():
     for q in [
         "What's the weather in Tokyo?",
         "What currency does Brazil use?",
-        "How hot is it in Dubai right now?",
-        "What's the dialing code for India?",
+        "What are the upcoming World Cup matches?",
+        "Who will win the next World Cup match, and why?",
     ]:
         print("\nUSER:", q)
         r = await supervisor(q)

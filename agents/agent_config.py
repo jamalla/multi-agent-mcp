@@ -17,4 +17,5 @@ def get_mcp_client():
 AGENT_PREFIXES = {
     "agent1": "weather_",
     "agent2": "country_",
+    "agent3": "worldcup_",
 }

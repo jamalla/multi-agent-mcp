@@ -10,5 +10,8 @@ services:
     healthCheckPath: /health
     # Render injects PORT automatically; mcp_server/server.py already reads it.
     # OPENAI_API_KEY is NOT needed by the server (only the agents use it).
-    # If you later deploy the agents, set it there instead.
-    envVars: []
+    # FOOTBALL_API_KEY is needed by the World Cup tools; set its value in the
+    # Render dashboard (sync: false keeps the secret out of git).
+    envVars:
+      - key: FOOTBALL_API_KEY
+        sync: false

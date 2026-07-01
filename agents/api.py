@@ -77,6 +77,7 @@ CHAT_HTML = """
              display: inline-flex; align-items: center; gap: 5px; }
     .route.weather { background: #dbeafe; color: #1d4ed8; }
     .route.country { background: #fef3c7; color: #b45309; }
+    .route.worldcup { background: #dcfce7; color: #15803d; }
     details.trace { font-size: 13px; color: var(--muted); border: 1px dashed var(--border);
                     border-radius: 10px; padding: 6px 10px; background: #fafafe; width: 100%; }
     details.trace summary { cursor: pointer; user-select: none; font-weight: 500; }
@@ -112,7 +113,7 @@ CHAT_HTML = """
   <div class="app">
     <header>
       <h1>🧭 Multi-Agent MCP Demo <span class="badge-live">live</span></h1>
-      <p>Ask about weather or countries. A supervisor routes each question to the right specialist agent, and you can expand each answer to see the tools it called.</p>
+      <p>Ask about weather, countries, or the FIFA World Cup 2026. A supervisor routes each question to the right specialist agent, and you can expand each answer to see the tools it called.</p>
     </header>
 
     <div id="log"></div>
@@ -120,8 +121,8 @@ CHAT_HTML = """
     <div class="chips" id="chips">
       <div class="chip" onclick="ask(this.textContent)">What's the weather in Tokyo?</div>
       <div class="chip" onclick="ask(this.textContent)">What currency does Brazil use?</div>
-      <div class="chip" onclick="ask(this.textContent)">Population of Japan?</div>
-      <div class="chip" onclick="ask(this.textContent)">Dialing code for India?</div>
+      <div class="chip" onclick="ask(this.textContent)">Upcoming World Cup matches?</div>
+      <div class="chip" onclick="ask(this.textContent)">Who will win the next World Cup match?</div>
     </div>
 
     <div id="row">
@@ -168,8 +169,9 @@ CHAT_HTML = """
     }
 
     function renderTrace(route, steps) {
-      const cls = route && route.destination === 'weather' ? 'weather' : 'country';
-      const icon = cls === 'weather' ? '🌤️' : '🌍';
+      const cls = (route && route.destination) || 'country';
+      const icons = { weather: '🌤️', country: '🌍', worldcup: '⚽' };
+      const icon = icons[cls] || '🤖';
       let html = '<span class="route ' + cls + '">' + icon + ' routed to ' + esc(route.agent) + '</span>';
       if (steps && steps.length) {
         let inner = '';
