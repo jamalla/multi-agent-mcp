@@ -25,8 +25,8 @@ async def startup():
 
 @app.post("/ask")
 async def ask(q: Query):
-    answer = await supervisor(q.question)
-    return {"answer": answer}
+    # returns {"answer": ..., "route": {...}, "steps": [...]}
+    return await supervisor(q.question)
 
 @app.get("/", response_class=HTMLResponse)
 async def home():
@@ -35,51 +35,156 @@ async def home():
 
 CHAT_HTML = """
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Multi-Agent MCP Demo</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
-    h1 { font-size: 20px; }
-    #log { border: 1px solid #ccc; border-radius: 8px; padding: 12px; height: 380px; overflow-y: auto; margin-bottom: 12px; }
-    .msg { margin: 8px 0; padding: 8px 12px; border-radius: 8px; white-space: pre-wrap; }
-    .user { background: #e8f0ff; text-align: right; }
-    .bot  { background: #f2f2f2; }
-    #row { display: flex; gap: 8px; }
-    input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 8px; }
-    button { padding: 10px 16px; border: 0; border-radius: 8px; background: #4f46e5; color: #fff; cursor: pointer; }
-    button:disabled { opacity: 0.5; }
+    :root {
+      --indigo: #4f46e5;
+      --indigo-dark: #4338ca;
+      --bg: #f7f7fb;
+      --user: #4f46e5;
+      --bot: #ffffff;
+      --border: #e6e6ef;
+      --muted: #6b7280;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      margin: 0; background: var(--bg); color: #1f2937;
+      min-height: 100vh; display: flex; justify-content: center;
+    }
+    .app { width: 100%; max-width: 720px; display: flex; flex-direction: column;
+           height: 100vh; padding: 0 16px; }
+    header { padding: 20px 4px 12px; }
+    header h1 { font-size: 20px; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+    header p { margin: 0; color: var(--muted); font-size: 14px; }
+    .badge-live { font-size: 11px; font-weight: 600; color: #059669; background: #d1fae5;
+                  padding: 2px 8px; border-radius: 999px; }
+    #log { flex: 1; overflow-y: auto; padding: 8px 4px 16px; display: flex;
+           flex-direction: column; gap: 14px; }
+    .turn { display: flex; flex-direction: column; gap: 6px; max-width: 88%; }
+    .turn.user { align-self: flex-end; align-items: flex-end; }
+    .turn.bot  { align-self: flex-start; align-items: flex-start; }
+    .bubble { padding: 11px 14px; border-radius: 14px; line-height: 1.5; font-size: 15px;
+              white-space: pre-wrap; word-wrap: break-word; }
+    .user .bubble { background: var(--user); color: #fff; border-bottom-right-radius: 4px; }
+    .bot .bubble  { background: var(--bot); border: 1px solid var(--border);
+                    border-bottom-left-radius: 4px; }
+    .route { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+             display: inline-flex; align-items: center; gap: 5px; }
+    .route.weather { background: #dbeafe; color: #1d4ed8; }
+    .route.country { background: #fef3c7; color: #b45309; }
+    details.trace { font-size: 13px; color: var(--muted); border: 1px dashed var(--border);
+                    border-radius: 10px; padding: 6px 10px; background: #fafafe; width: 100%; }
+    details.trace summary { cursor: pointer; user-select: none; font-weight: 500; }
+    .step { margin: 6px 0 0; padding-left: 6px; border-left: 2px solid var(--border); }
+    .step .tool { font-family: ui-monospace, "SF Mono", Menlo, monospace; color: #4338ca;
+                  font-size: 12.5px; }
+    .step .io { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: #374151;
+                white-space: pre-wrap; word-break: break-word; margin-top: 2px; }
+    .dots span { animation: blink 1.2s infinite both; }
+    .dots span:nth-child(2) { animation-delay: .2s; }
+    .dots span:nth-child(3) { animation-delay: .4s; }
+    @keyframes blink { 0%,80%,100% { opacity: .2 } 40% { opacity: 1 } }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 4px 10px; }
+    .chip { font-size: 13px; padding: 6px 12px; border: 1px solid var(--border);
+            background: #fff; border-radius: 999px; cursor: pointer; color: #374151; }
+    .chip:hover { border-color: var(--indigo); color: var(--indigo); }
+    #row { display: flex; gap: 8px; padding: 10px 4px 18px; }
+    #q { flex: 1; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px;
+         font-size: 15px; outline: none; }
+    #q:focus { border-color: var(--indigo); box-shadow: 0 0 0 3px rgba(79,70,229,.12); }
+    #send { padding: 12px 20px; border: 0; border-radius: 12px; background: var(--indigo);
+            color: #fff; font-weight: 600; cursor: pointer; }
+    #send:hover { background: var(--indigo-dark); }
+    #send:disabled { opacity: .5; cursor: default; }
   </style>
 </head>
 <body>
-  <h1>Multi-Agent MCP Demo</h1>
-  <p>Ask about weather or countries — the supervisor routes to the right agent.</p>
-  <div id="log"></div>
-  <div id="row">
-    <input id="q" placeholder="e.g. What's the weather in Tokyo?" autofocus>
-    <button id="send" onclick="ask()">Send</button>
+  <div class="app">
+    <header>
+      <h1>🧭 Multi-Agent MCP Demo <span class="badge-live">live</span></h1>
+      <p>Ask about weather or countries — a supervisor routes each question to the right specialist agent, and you can expand each answer to see the tools it called.</p>
+    </header>
+
+    <div id="log"></div>
+
+    <div class="chips" id="chips">
+      <div class="chip" onclick="ask(this.textContent)">What's the weather in Tokyo?</div>
+      <div class="chip" onclick="ask(this.textContent)">What currency does Brazil use?</div>
+      <div class="chip" onclick="ask(this.textContent)">Population of Japan?</div>
+      <div class="chip" onclick="ask(this.textContent)">Dialing code for India?</div>
+    </div>
+
+    <div id="row">
+      <input id="q" placeholder="Ask about weather or a country…" autofocus>
+      <button id="send" onclick="ask()">Send</button>
+    </div>
   </div>
+
   <script>
     const log = document.getElementById('log');
     const input = document.getElementById('q');
     const btn = document.getElementById('send');
+    const chips = document.getElementById('chips');
 
-    function add(text, cls) {
-      const d = document.createElement('div');
-      d.className = 'msg ' + cls;
-      d.textContent = text;
-      log.appendChild(d);
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    // tiny formatter: escape, then **bold**
+    function fmt(s) {
+      return esc(s).replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>');
+    }
+
+    function addUser(text) {
+      const t = document.createElement('div');
+      t.className = 'turn user';
+      t.innerHTML = '<div class="bubble">' + esc(text) + '</div>';
+      log.appendChild(t);
       log.scrollTop = log.scrollHeight;
     }
 
-    async function ask() {
-      const question = input.value.trim();
+    function addBotLoading() {
+      const t = document.createElement('div');
+      t.className = 'turn bot';
+      t.innerHTML = '<div class="bubble"><span class="dots"><span>●</span><span>●</span><span>●</span></span> ' +
+                    '<span style="color:#6b7280">thinking… first request may take ~40s if the server was asleep</span></div>';
+      log.appendChild(t);
+      log.scrollTop = log.scrollHeight;
+      return t;
+    }
+
+    function renderTrace(route, steps) {
+      const cls = route && route.destination === 'weather' ? 'weather' : 'country';
+      const icon = cls === 'weather' ? '🌤️' : '🌍';
+      let html = '<span class="route ' + cls + '">' + icon + ' routed to ' + esc(route.agent) + '</span>';
+      if (steps && steps.length) {
+        let inner = '';
+        for (const s of steps) {
+          if (s.kind === 'tool_call') {
+            inner += '<div class="step"><span class="tool">🔧 ' + esc(s.tool) + '(' +
+                     esc(JSON.stringify(s.args)) + ')</span></div>';
+          } else {
+            inner += '<div class="step"><span class="tool">📥 ' + esc(s.tool) + '</span>' +
+                     '<div class="io">' + esc(s.output) + '</div></div>';
+          }
+        }
+        html += '<details class="trace"><summary>Show reasoning (' + steps.length + ' step' +
+                (steps.length === 1 ? '' : 's') + ')</summary>' + inner + '</details>';
+      }
+      return html;
+    }
+
+    async function ask(preset) {
+      const question = (preset || input.value).trim();
       if (!question) return;
-      add(question, 'user');
+      addUser(question);
       input.value = '';
       btn.disabled = true;
-      add('Thinking… (first request may take ~40s if the server was asleep)', 'bot');
+      const loading = addBotLoading();
       try {
         const r = await fetch('/ask', {
           method: 'POST',
@@ -87,12 +192,15 @@ CHAT_HTML = """
           body: JSON.stringify({ question })
         });
         const data = await r.json();
-        log.lastChild.textContent = data.answer;
+        loading.innerHTML =
+          (data.route ? renderTrace(data.route, data.steps) : '') +
+          '<div class="bubble">' + fmt(data.answer || '(no answer)') + '</div>';
       } catch (e) {
-        log.lastChild.textContent = 'Error: ' + e.message;
+        loading.innerHTML = '<div class="bubble">⚠️ Error: ' + esc(e.message) + '</div>';
       } finally {
         btn.disabled = false;
         input.focus();
+        log.scrollTop = log.scrollHeight;
       }
     }
 
