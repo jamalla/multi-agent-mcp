@@ -1,0 +1,14 @@
+# Render Blueprint — deploys the MCP server as a free Docker web service.
+# In the Render dashboard: New → Blueprint → connect this repo, and Render
+# reads this file. (Or create the Web Service manually with the same settings.)
+services:
+  - type: web
+    name: multi-agent-mcp
+    runtime: docker
+    dockerfilePath: ./Dockerfile.server
+    plan: free
+    healthCheckPath: /health
+    # Render injects PORT automatically; mcp_server/server.py already reads it.
+    # OPENAI_API_KEY is NOT needed by the server (only the agents use it).
+    # If you later deploy the agents, set it there instead.
+    envVars: []
